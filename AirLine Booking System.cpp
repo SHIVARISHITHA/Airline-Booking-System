@@ -1,18 +1,19 @@
-#include<bits/stdc++.h>
-using namespace std;
-
-/*
-Airline flight reservation system: Allows online booking of tickets, cancellation, seat selection, food preference, and reservation changes.
-*/
+#include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+#include <limits>
+#include <algorithm>
+#include <array>
 
 // Constants
-const int TOTAL_SEATS = 100;
+constexpr int TOTAL_SEATS = 100;
 
 // Flight class definition
 class Flight {
 public:
-    Flight() : start(nullptr), reserve_seats(0), cancel_tickets(0) {
-        fill(begin(seats), end(seats), 0);
+    Flight() : reserve_seats(0), cancel_tickets(0) {
+        seats.fill(0);
     }
     
     void book_ticket();
@@ -20,66 +21,71 @@ public:
     void change_reservation();
     void passenger_details();
     void get_booking_details();
+    void clear_input_buffer();
 
 private:
     struct Passenger {
-        string fname;
-        string lname;
-        string ID;
-        string phone_number;
-        string food_menu;
+        std::string fname;
+        std::string lname;
+        std::string ID;
+        std::string phone_number;
+        std::string food_menu;
         int seat_number;
         int reservation_number;
-        Passenger* next;
     };
 
-    Passenger* start;
-    Passenger* temp_passenger;
-    Passenger* temp1;
-    int seats[TOTAL_SEATS];
+    std::vector<std::unique_ptr<Passenger>> passengers;
+    std::array<int, TOTAL_SEATS> seats;
     int reserve_seats;
     int cancel_tickets;
 
     void allocate_seat_number(int snumber);
 };
 
+// Clear input buffer function
+void Flight::clear_input_buffer() {
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
 // Seat allocation function
 void Flight::allocate_seat_number(int snumber) {
     if (snumber < 1 || snumber > TOTAL_SEATS) {
-        cout << "Invalid seat number. Please choose a number between 1 and " << TOTAL_SEATS << "." << endl;
+        std::cout << "Invalid seat number. Please choose a number between 1 and " << TOTAL_SEATS << "." << std::endl;
         return;
     }
     
     if (seats[snumber - 1] == -1) {
-        cout << "The seat is already taken. Please choose another seat." << endl;
+        std::cout << "The seat is already taken. Please choose another seat." << std::endl;
         return;
     }
 
-    cout << "Available seats: ";
+    std::cout << "Available seats: ";
     for (int i = 1; i <= TOTAL_SEATS; ++i) {
         if (seats[i - 1] == 0) {
-            cout << i << " ";
+            std::cout << i << " ";
         }
     }
-    cout << endl;
+    std::cout << std::endl;
 }
 
 // Book ticket function
 void Flight::book_ticket() {
-    temp_passenger = new Passenger;
-    cout << "Enter your first name: ";
-    cin >> temp_passenger->fname;
-    cout << "Enter your last name: ";
-    cin >> temp_passenger->lname;
-    cout << "Enter your ID: ";
-    cin >> temp_passenger->ID;
-    cout << "Enter your phone number: ";
-    cin >> temp_passenger->phone_number;
+    auto temp_passenger = std::make_unique<Passenger>();
+    std::cout << "Enter your first name: ";
+    std::cin >> temp_passenger->fname;
+    std::cout << "Enter your last name: ";
+    std::cin >> temp_passenger->lname;
+    std::cout << "Enter your ID: ";
+    std::cin >> temp_passenger->ID;
+    std::cout << "Enter your phone number: ";
+    std::cin >> temp_passenger->phone_number;
 
     int snumber;
     do {
-        cout << "Enter the seat number: ";
-        cin >> snumber;
+        std::cout << "Enter the seat number: ";
+        std::cin >> snumber;
+        clear_input_buffer();
         allocate_seat_number(snumber);
 
         if (seats[snumber - 1] == 0) {
@@ -90,171 +96,149 @@ void Flight::book_ticket() {
         }
     } while (true);
 
-    cout << "Enter your food choice preference: \n1. Veg\n2. Non-Veg\n3. No Food\nYour choice: ";
+    std::cout << "Enter your food choice preference: \n1. Veg\n2. Non-Veg\n3. No Food\nYour choice: ";
     int choice;
-    cin >> choice;
+    std::cin >> choice;
+    clear_input_buffer();
     while (choice < 1 || choice > 3) {
-        cout << "Invalid choice, enter again: ";
-        cin >> choice;
+        std::cout << "Invalid choice, enter again: ";
+        std::cin >> choice;
+        clear_input_buffer();
     }
     temp_passenger->food_menu = (choice == 1) ? "Veg" : (choice == 2) ? "Non-Veg" : "No Food";
 
-    temp_passenger->next = nullptr;
-    if (start == nullptr) {
-        start = temp_passenger;
-    } else {
-        Passenger* temp = start;
-        while (temp->next != nullptr) {
-            temp = temp->next;
-        }
-        temp->next = temp_passenger;
-    }
-    cout << "Your reservation number is: " << reserve_seats << endl;
+    passengers.push_back(std::move(temp_passenger));
+    std::cout << "Your reservation number is: " << reserve_seats << std::endl;
 }
 
 // Cancel ticket function
 void Flight::cancel_ticket() {
     int reservation_number;
-    cout << "Enter your reservation number: ";
-    cin >> reservation_number;
+    std::cout << "Enter your reservation number: ";
+    std::cin >> reservation_number;
+    clear_input_buffer();
 
-    temp_passenger = start;
-    temp1 = nullptr;
-    while (temp_passenger != nullptr) {
-        if (temp_passenger->reservation_number == reservation_number) {
-            if (temp_passenger == start) {
-                start = start->next;
-            } else {
-                temp1->next = temp_passenger->next;
-            }
-            seats[temp_passenger->seat_number - 1] = 0;
-            delete temp_passenger;
-            ++cancel_tickets;
-            cout << "Ticket canceled successfully." << endl;
-            return;
-        }
-        temp1 = temp_passenger;
-        temp_passenger = temp_passenger->next;
+    auto it = std::find_if(passengers.begin(), passengers.end(),
+        [reservation_number](const auto& p) { return p->reservation_number == reservation_number; });
+
+    if (it != passengers.end()) {
+        seats[(*it)->seat_number - 1] = 0;
+        passengers.erase(it);
+        ++cancel_tickets;
+        std::cout << "Ticket canceled successfully." << std::endl;
+    } else {
+        std::cout << "Reservation number not found." << std::endl;
     }
-    cout << "Reservation number not found." << endl;
 }
 
 // Change reservation function
 void Flight::change_reservation() {
     int current_seat_number, next_seat_number;
-    cout << "Please enter your current seat number: ";
-    cin >> current_seat_number;
+    std::cout << "Please enter your current seat number: ";
+    std::cin >> current_seat_number;
+    clear_input_buffer();
 
-    temp_passenger = start;
-    while (temp_passenger != nullptr) {
-        if (temp_passenger->seat_number == current_seat_number) {
-            break;
-        }
-        temp_passenger = temp_passenger->next;
-    }
+    auto it = std::find_if(passengers.begin(), passengers.end(),
+        [current_seat_number](const auto& p) { return p->seat_number == current_seat_number; });
 
-    if (temp_passenger == nullptr) {
-        cout << "Current seat number not found." << endl;
+    if (it == passengers.end()) {
+        std::cout << "Current seat number not found." << std::endl;
         return;
     }
 
-    cout << "Available seats: ";
+    std::cout << "Available seats: ";
     for (int i = 1; i <= TOTAL_SEATS; ++i) {
         if (seats[i - 1] == 0) {
-            cout << i << " ";
+            std::cout << i << " ";
         }
     }
-    cout << endl;
+    std::cout << std::endl;
 
-    cout << "Please choose a new seat number: ";
-    cin >> next_seat_number;
+    std::cout << "Please choose a new seat number: ";
+    std::cin >> next_seat_number;
+    clear_input_buffer();
     if (next_seat_number < 1 || next_seat_number > TOTAL_SEATS || seats[next_seat_number - 1] == -1) {
-        cout << "Invalid seat number." << endl;
+        std::cout << "Invalid seat number." << std::endl;
         return;
     }
 
-    seats[temp_passenger->seat_number - 1] = 0;
-    temp_passenger->seat_number = next_seat_number;
+    seats[(*it)->seat_number - 1] = 0;
+    (*it)->seat_number = next_seat_number;
     seats[next_seat_number - 1] = -1;
-    cout << "Reservation changed successfully." << endl;
+    std::cout << "Reservation changed successfully." << std::endl;
 }
 
 // Passenger details function
 void Flight::passenger_details() {
     int reservation_number;
-    cout << "Enter your reservation number: ";
-    cin >> reservation_number;
+    std::cout << "Enter your reservation number: ";
+    std::cin >> reservation_number;
+    clear_input_buffer();
 
-    temp_passenger = start;
-    while (temp_passenger != nullptr) {
-        if (temp_passenger->reservation_number == reservation_number) {
-            cout << "Reservation Number\tFirst Name\tLast Name\tID\tPhone Number\tSeat Number\tFood Menu" << endl;
-            cout << temp_passenger->reservation_number << "\t\t" << temp_passenger->fname << "\t\t" << temp_passenger->lname << "\t\t" << temp_passenger->ID << "\t" << temp_passenger->phone_number << "\t" << temp_passenger->seat_number << "\t\t" << temp_passenger->food_menu << endl;
-            return;
-        }
-        temp_passenger = temp_passenger->next;
+    auto it = std::find_if(passengers.begin(), passengers.end(),
+        [reservation_number](const auto& p) { return p->reservation_number == reservation_number; });
+
+    if (it != passengers.end()) {
+        std::cout << "Reservation Number\tFirst Name\tLast Name\tID\tPhone Number\tSeat Number\tFood Menu" << std::endl;
+        const auto& p = *it;
+        std::cout << p->reservation_number << "\t\t" << p->fname << "\t\t" << p->lname << "\t\t" << p->ID << "\t"
+                  << p->phone_number << "\t" << p->seat_number << "\t\t" << p->food_menu << std::endl;
+    } else {
+        std::cout << "Reservation number not found." << std::endl;
     }
-    cout << "Reservation number not found." << endl;
 }
 
 // Get booking details function
 void Flight::get_booking_details() {
-    cout << "Reservation Number\tFirst Name\tLast Name\tID\tPhone Number\tSeat Number\tFood Menu" << endl;
-    temp_passenger = start;
-    while (temp_passenger != nullptr) {
-        cout << temp_passenger->reservation_number << "\t\t" << temp_passenger->fname << "\t\t" << temp_passenger->lname << "\t\t" << temp_passenger->ID << "\t" << temp_passenger->phone_number << "\t" << temp_passenger->seat_number << "\t\t" << temp_passenger->food_menu << endl;
-        temp_passenger = temp_passenger->next;
+    std::cout << "Reservation Number\tFirst Name\tLast Name\tID\tPhone Number\tSeat Number\tFood Menu" << std::endl;
+    for (const auto& p : passengers) {
+        std::cout << p->reservation_number << "\t\t" << p->fname << "\t\t" << p->lname << "\t\t" << p->ID << "\t"
+                  << p->phone_number << "\t" << p->seat_number << "\t\t" << p->food_menu << std::endl;
     }
 }
 
 // Welcome function
 void welcome() {
-    cout << "\t\t|---------------------------------------------------------------|" << endl;
-    cout << "\t\t|        WELCOME TO AIRLINE FLIGHT RESERVATION SYSTEM          |" << endl;
-    cout << "\t\t|---------------------------------------------------------------|" << endl;
-    cout << "\t\t| 1) BOOK TICKET                                              |" << endl;
-    cout << "\t\t| 2) CANCEL TICKET                                            |" << endl;
-    cout << "\t\t| 3) CHANGE RESERVATION                                       |" << endl;
-    cout << "\t\t| 4) PASSENGER DETAILS                                        |" << endl;
-    cout << "\t\t| 5) GET BOOKING DETAILS                                      |" << endl;
-    cout << "\t\t| 6) EXIT                                                     |" << endl;
-    cout << "\t\t|---------------------------------------------------------------|" << endl;
+    std::cout << "\t\t|---------------------------------------------------------------|" << std::endl;
+    std::cout << "\t\t|        WELCOME TO AIRLINE FLIGHT RESERVATION SYSTEM           |" << std::endl;
+    std::cout << "\t\t|---------------------------------------------------------------|" << std::endl;
+    std::cout << "\t\t| 1) BOOK TICKET                                                |" << std::endl;
+    std::cout << "\t\t| 2) CANCEL TICKET                                              |" << std::endl;
+    std::cout << "\t\t| 3) CHANGE RESERVATION                                         |" << std::endl;
+    std::cout << "\t\t| 4) PASSENGER DETAILS                                          |" << std::endl;
+    std::cout << "\t\t| 5) GET BOOKING DETAILS                                        |" << std::endl;
+    std::cout << "\t\t| 6) EXIT                                                       |" << std::endl;
+    std::cout << "\t\t|---------------------------------------------------------------|" << std::endl;
 
     Flight flight;
     int choice;
     do {
-        cout << "Enter your choice: ";
-        cin >> choice;
+        std::cout << "Enter your choice: ";
+        std::cin >> choice;
+        flight.clear_input_buffer();
         switch (choice) {
             case 1:
-                system("CLS");
                 flight.book_ticket();
                 break;
             case 2:
-                system("CLS");
                 flight.cancel_ticket();
                 break;
             case 3:
-                system("CLS");
                 flight.change_reservation();
                 break;
             case 4:
-                system("CLS");
                 flight.passenger_details();
                 break;
             case 5:
-                system("CLS");
                 flight.get_booking_details();
                 break;
             case 6:
-                system("CLS");
-                cout << "Exiting program." << endl;
-                exit(0);
+                std::cout << "Exiting program." << std::endl;
+                return;
             default:
-                system("CLS");
-                cout << "Invalid choice. Please enter a number between 1 and 6." << endl;
+                std::cout << "Invalid choice. Please enter a number between 1 and 6." << std::endl;
         }
-    } while (choice != 6);
+    } while (true);
 }
 
 int main() {
